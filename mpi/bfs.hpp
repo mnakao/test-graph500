@@ -582,7 +582,7 @@ public:
 		return s_.offset[0];
 	}
 
-	int top_down_make_nq_list(bool with_z, TwodVertex shifted_rc, int bitmap_width, TwodVertex* outbuf) {
+	int top_down_make_nq_list(bool with_z, TwodVertex shifted_rc, int bitmap_width, TwodVertex** outbuf) {
 		TRACER(td_make_nq_list);
 		int size_z = with_z ? mpi.size_z : 1;
 		int rank_z = with_z ? mpi.rank_z : 0;
@@ -613,7 +613,11 @@ public:
 					for(int i = 0; i < node_threads; ++i) {
 						th_offset[i+1] += th_offset[i];
 					}
-					assert (th_offset[node_threads] <= int(bitmap_width*sizeof(BitmapType)/sizeof(TwodVertex)*size_z));
+					//assert (th_offset[node_threads] <= int(bitmap_width*sizeof(BitmapType)/sizeof(TwodVertex)*size_z));
+					int max_size = bitmap_width*sizeof(BitmapType)/sizeof(TwodVertex)*size_z;
+					if(th_offset[node_threads] > max_size){
+					  *outbuf = work_extra_outbuf_ = (TwodVertex*)cache_aligned_xmalloc(th_offset[node_threads] * sizeof(TwodVertex));
+					}
 				}
 				if(with_z) s_.sync->barrier();
 				result_size = th_offset[node_threads];
@@ -624,7 +628,7 @@ public:
 			for(int i = 0; i < num_buffers; ++i) {
 				int len = nq_.stack_[i]->length;
 				TwodVertex* src = nq_.stack_[i]->v;
-				TwodVertex* dst = outbuf + offset;
+				TwodVertex* dst = *outbuf + offset;
 				for(int c = 0; c < len; ++c) {
 					dst[c] = src[c] | shifted_rc;
 				}
@@ -672,8 +676,9 @@ public:
 		int bitmap_width = get_bitmap_size_local();
 		// old_visited is used as a temporal buffer
 		TwodVertex* nq_list = (TwodVertex*)old_visited_;
-		int nq_size = top_down_make_nq_list(false, shifted_c, bitmap_width, nq_list);
+		int nq_size = top_down_make_nq_list(false, shifted_c, bitmap_width, &nq_list);
 		top_down_expand_nq_list(nq_list, nq_size);
+		if(nq_list != old_visited_){ free(work_extra_outbuf_); work_extra_outbuf_ = NULL;}
 	}
 
 	void top_down_switch_expand(bool bitmap_or_list) {
@@ -2610,6 +2615,7 @@ public:
 	void* work_extra_buf_; // for large CQ in the top down phase
 	int64_t work_buf_size_; // in bytes
 	int64_t work_extra_buf_size_;
+        TwodVertex *work_extra_outbuf_;
 
 	BitmapType* shared_visited_; // shared memory
 	TwodVertex* nq_recv_buf_; // shared memory (memory space is shared with work_buf_)

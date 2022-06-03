@@ -40,9 +40,10 @@ CUOBJ := cuda_kernel.o
 LIBS := -lm
 
 ifeq ($(SW), GNU3)
-CFLAGS := $(GCC_BASE) -O3 -DNDEBUG
+#CFLAGS := $(GCC_BASE) -O3 -DNDEBUG
+CFLAGS := $(GCC_BASE) -O3
 NVCCFLAGS := $(NVFLAG_BASE) -g -O3 -DNDEBUG -keep
-LIBS := $(LIBS) -lnuma
+#LIBS := $(LIBS) -lnuma
 endif
 ifeq ($(SW), GNU0)
 CFLAGS := $(GCC_BASE) -O0
