@@ -170,7 +170,7 @@ public:
 		 * - communication buffer for asynchronous communication:
 		 */
 
-		a2a_comm_buf_.allocate_memory(graph_.num_local_verts_ * sizeof(int32_t) * 50); // TODO: accuracy
+		a2a_comm_buf_.allocate_memory(graph_.num_local_verts_ * sizeof(int32_t) * 30); // TODO: accuracy
 
 		top_down_comm_.max_num_rows = graph_.num_local_verts_ * 16 / PRM::TOP_DOWN_PENDING_WIDTH + 1000;
 		top_down_comm_.tmp_rows = (TopDownRow*)cache_aligned_xmalloc(
@@ -2810,18 +2810,11 @@ void BfsBase::run_bfs(int64_t root, int64_t* pred)
 #endif
 		int64_t global_unvisited_vertices = graph_.num_global_verts_ - global_visited_vertices;
 		next_bitmap_or_list = !forward_or_backward_;
-		if(growing_or_shrinking_ && global_nq_size_ > prev_global_nq_size) { // growing
-			if(forward_or_backward_ // forward ?
-				&& global_nq_size_ > graph_.num_global_verts_ / denom_to_bottom_up_ // NQ is large ?
-				) { // switch to backward
+		if(current_level_ == 2){
 				next_forward_or_backward = false;
 				packet_buffer_is_dirty_ = true;
-			}
 		}
-		else { // shrinking
-			if(!forward_or_backward_  // backward ?
-				&& global_unvisited_vertices < int64_t(graph_.num_global_verts_ / DEMON_BOTTOMUP_TO_TOPDOWN) // NQ is small ?
-				) { // switch to topdown
+	else if(current_level_ == 3){
 				next_forward_or_backward = true;
 				growing_or_shrinking_ = false;
 
@@ -2833,7 +2826,6 @@ void BfsBase::run_bfs(int64_t root, int64_t* pred)
 				double threashold = bitmap_width*sizeof(BitmapType)/sizeof(TwodVertex)/denom_bitmap_to_list_;
 				next_bitmap_or_list = (max_nq_size_ >= threashold);
 			}
-		}
 		if(next_forward_or_backward == false) {
 			// bottom-up only with bitmap
 			// do not use top_down_switch_expand with list since it is very slow!!
