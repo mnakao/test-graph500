@@ -297,13 +297,18 @@ public:
 		void* get_next() {
 			int idx = current_index_++;
 			if(num_buffers_ <= idx) {
-				fprintf(IMD_OUT, "num_buffers_ <= idx (num_buffers=%d)\n", num_buffers_);
-				throw "Error: buffer size not enough";
+			  //fprintf(IMD_OUT, "num_buffers_ <= idx (num_buffers=%d)\n", num_buffers_);
+			  //throw "Error: buffer size not enough";
+			  auto ptr = cache_aligned_xmalloc(PRM::COMM_BUFFER_SIZE);
+			  extra_buffers.push_back(ptr);
+			  return (uint8_t*)ptr;
 			}
 			return (uint8_t*)first_buffer_ + PRM::COMM_BUFFER_SIZE * idx;
 		}
 
 		void* clear_buffers() {
+		  for(auto ptr : extra_buffers) free(ptr);
+		  extra_buffers.clear();
 			current_index_ = 0;
 			return first_buffer_;
 		}
@@ -322,6 +327,7 @@ public:
 		void* second_buffer_;
 		int current_index_;
 		int num_buffers_;
+	  std::vector<void*> extra_buffers;
 	};
 
 	template <typename T>
